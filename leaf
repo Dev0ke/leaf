@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+source /etc/leaf.conf
+
+PACKAGE_NAME=""
+MODE=$1
+
+leaf_usage() {
+  cat << EOF
+Usage: leaf [option] <package_name_with_version>
+
+EOF
+}
+
+leaf_prepare() {
+  tar -xf ${PKG_DIR}/${PACKAGE_NAME}.t*z* -C ${BUILD_DIR}
+  cp ${PKGBUILD_DIR}/${PACKAGE_NAME}.PKGBUILD ${BUILD_DIR}/${PACKAGE_NAME}
+}
+
+leaf_install() {
+  cd ${BUILD_DIR}/${PACKAGE_NAME}
+  source ${PACKAGE_NAME}.PKGBUILD install
+  echo "${PACKAGE_NAME}" >> ${LOG_FILE}
+}
+
+leaf_remove() {
+  cd ${BUILD_DIR}/${PACKAGE_NAME}
+  source ${PACKAGE_NAME}.PKGBUILD remove
+  sed -i "/${PACKAGE_NAME}/d" ${LOG_FILE}
+}
+
+leaf_clean() {
+  rm -rf ${BUILD_DIR}/${PACKAGE_NAME}
+}
+
+if [ $# -lt 2 ]; then
+  leaf_usage
+  exit 0
+elif [ "${MODE}" != "install" -a "${MODE}" != "remove" ]; then
+  echo "option: install | remove"
+  exit 0
+fi
+
+for ((i=2;i<=$#;i+=1)) do
+  PACKAGE_NAME="${@:i:1}"
+  leaf_prepare
+  if [ "${MODE}" == "install" ]; then
+    leaf_install
+  elif [ "${MODE}" == "remove" ]; then
+    leaf_remove
+  fi
+  leaf_clean
+done
+
+exit 0
